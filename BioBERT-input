@@ -1,0 +1,160 @@
+import numpy as np
+import pandas as pd
+import json
+import re
+import time
+from collections import Counter
+import os
+import datetime
+
+
+PMC_files=[] #empty list to hold all PMC filenames 
+
+all_files = os.listdir('/Users/nazanin/Downloads/p14_MicrobiomeNER-test_set_v1_json 2/1') #directory to pmc files
+
+for n in all_files:
+    
+    if n.startswith('PMC'):  #a list of all PMC files in the directory
+        PMC_files.append(n)
+
+for in_file in PMC_files: #for each PMC file 
+
+    with open('/Users/nazanin/Downloads/p14_MicrobiomeNER-test_set_v1_json 2/1/'+in_file) as m_file:
+        
+        
+
+      
+      file = json.load(m_file)
+
+      input=pd.DataFrame(index=range(0,30000))
+      input["word"]=np.nan
+      input["letter"]=np.nan
+      i=0
+      print(input)
+      documents=file['documents'] 
+         
+      for j in documents:
+        passages= j['passages'] 
+        for m in passages:
+          offsets=[]  
+          for n in m['annotations']:
+            
+            one=n['locations'][0]['offset']-m['offset']
+            offsets.append(one)   
+          text=re.split(r'(\W+)', m['text'])  
+          k=0
+          found_offset=[]
+          while k < len(text):
+           try:
+            input['word'][i] = text[k]
+            
+            #index=text.index(text[k])
+
+            if text[k] in found_offset:
+              
+                d = Counter(found_offset)
+                
+                iter_offset=[m.start() for m in re.finditer(text[k],m['text'])]
+                s=d[text[k]]
+                o=iter_offset[s] 
+            else: 
+                #a = re.search(r'\b({})\b'.format(text[k]), m['text'])
+            
+                #o=a.start()
+                o=m['text'].find(text[k])
+            
+            if o in offsets:
+                num=len(n['text'].split())
+                num1=len(re.split(r'(\W+)', n['text']) )
+                test=re.split(r'(\W+)', n['text']) 
+                
+                
+                
+                found_offset.append(text[k])
+                
+                
+                if num1==5:
+                    input['letter'][i] = 'B'
+                    input['letter'][i+1] = 'I'
+                    input['letter'][i+2] = 'I'
+                    input['letter'][i+3] = 'I'
+                    input['word'][i+1] = text[k+1]
+                    input['word'][i+2] = text[k+2]
+                    input['word'][i+3] = text[k+3]
+                    
+                    i+=1
+                    i+=1
+                    i+=1
+                    k+=1
+                    k+=1
+                    k+=1
+                elif num1==3:
+                   if text[k+2] in n['text']:
+                    input['letter'][i] = 'B'
+                    input['letter'][i+1] = 'I'
+                    input['letter'][i+2] = 'I'
+                    input['word'][i] = test[0]
+                    input['word'][i+1] = test[1]
+                    input['word'][i+2] = test[2]
+                    
+                   
+                    i+=1
+                    i+=1
+                    
+                    k+=1
+                    k+=1
+                 
+                   else:
+                    input['letter'][i] = 'B'
+                    input['word'][i] = test[0]
+                    input['letter'][i+1] = 'I'
+                    input['letter'][i+2] = 'I'
+                    input['word'][i+1] = test[1]
+                    input['word'][i+2] = test[2]
+                    i+=1
+                    i+=1
+                    
+                    k+=1
+                    k+=1
+                    
+                    
+                    
+                    
+                
+                else:
+                   input['letter'][i] = 'B'
+                   input['word'][i] = n['text']
+                   
+                    
+
+                  
+
+                  
+               
+            else:
+                
+                input['letter'][i] = 'O'
+            i+=1
+            k+=1
+           except:
+                 pass     
+      nan_value = float("NaN") 
+ 
+      input.replace(" ", nan_value, inplace=True)        
+      input.dropna(inplace = True)   
+ 
+      input.reset_index(drop=True,inplace=True) 
+ 
+      for i in range(0,len(input["word"])):
+       try:
+         if input["word"][i]=='.' and input["letter"][i]=='O' or input["word"][i]=='. ' and input["letter"][i]=='O' or input["word"][i]==' .' and input["letter"][i]=='O' or input["word"][i]==' . ' and input["letter"][i]=='O':
+           #input.loc[i+0.5] = {" "," "}
+           input.loc[i+0.5] = " ", " "
+           input = input.sort_index().reset_index(drop=True)
+        
+        
+         
+       except:
+         pass
+        
+      input.to_csv(r"/Users/nazanin/Downloads/p14_MicrobiomeNER-test_set_v1_json 2/1/converted/"+str(in_file)+".tsv", index = False, sep="\t")
