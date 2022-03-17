@@ -1,0 +1,272 @@
+import numpy as np
+import pandas as pd
+import json
+import re
+import time
+from collections import Counter
+import os
+import datetime
+
+f1 = open('dictionary.json') #address to the JSON file of the dictionary
+
+dict_data = json.load(f1)
+
+f3 = open('dictionary.json')
+
+dict_data1 = json.load(f3) #address to the JSON file of the dictionary
+list1=[]
+
+#f = open('/Users/nazanin/Downloads/vaginal-output/PMC2074899_bioc.json')
+ 
+# returns JSON object as
+# a dictionary
+start_time = datetime.datetime.now() #start time
+
+message = '' #message with start and stop time
+
+PMC_files=[] #empty list to hold all PMC filenames 
+
+all_files = os.listdir('/Users/nazanin/Downloads/new-json/output_vaginal/Division_vaginal/training') #directory to pmc files
+
+for n in all_files:
+    
+    if n.startswith('PMC'):  #a list of all PMC files in the directory
+        PMC_files.append(n)
+
+
+
+
+
+
+
+
+documents,passages,text,match,iter_microbiome=[],[],[],[],[]
+species_list=['sp','sp','sp. strain','spp','sp. nov']   
+genus_list=['gen','nov']
+id,s,b=0,0,0
+#function for string matching 
+def matchString(string1,string2):
+    match=re.search(string1.lower(), string2.lower())
+    return match
+#function to find duplicates in a list
+def list_duplicates_of(seq,item):
+    start_at = -1
+    locs = []
+    while True:
+        try:
+            loc = seq.index(item,start_at+1)
+        except ValueError:
+            break
+        else:
+            locs.append(loc)
+            start_at = loc
+    return locs
+#function to add annotation 
+def addAnnotation(list,text,iden,strid,offset,off,my_list):
+    if text in my_list:
+        print(1)
+    else:
+        my_list.append(text)
+    
+    list.append({
+                             "text":text,
+                             "infons":{
+                                 "identifier": iden ,
+                                 "type": "taxonomic_rank" ,
+                                 "annotator":"n.faghih-mirzaei21@imperial.ac.uk",
+                                 "date": time.strftime("%Y-%m-%d %H:%M:%S",time.localtime()) ,
+                             },
+                             "id":  strid,
+                             "locations":{
+                                 "length": len(text),
+                                 "offset":offset  + off
+                             }
+                         })
+def searchAndAnnotate(k,foundtext,kingdom,tax,found_microbiome,text,annotation,offset,b,found_offset,tx,num,my_list):
+      o=0
+      if kingdom=='archea':
+          kingdom="archaea"
+      strings = ['TAXRANK',':',str(kingdom), "_", str(tax),"_" ,'NCBI']
+      identifier=''.join(strings)
+      
+      if k in found_microbiome:
+       
+            d = Counter(found_microbiome)
+            iter_microbiome=[m.start() for m in re.finditer(k,text)]
+            s=d[k]
+            o=iter_microbiome[s] - num
+            
+            
+      else: 
+            a = re.search(r'\b({})\b'.format(foundtext), text)
+            
+            o=a.start()
+            
+     
+            
+      
+            
+            
+            #o=text.find(' '+k+' ')
+      if b==1:
+          found_offset.append(k) 
+          
+          addAnnotation(annotation,foundtext,identifier,str(id),offset,o,my_list)
+          found_microbiome.append(k)
+      else:
+          if tx in species_list or tx in genus_list :
+         
+              
+                 print(k)
+          else:
+                 
+                 addAnnotation(annotation,foundtext,identifier,str(id),offset,o,my_list)
+                 found_microbiome.append(k)
+      
+                            
+for in_file in PMC_files: #for each PMC file 
+
+    with open('/Users/nazanin/Downloads/new-json/output_vaginal/Division_vaginal/training/'+in_file) as m_file:
+        
+        data = json.load(m_file)
+        my_list=[]
+#data = json.load(f)
+        #data=[data]
+        #for i in data:
+    try:
+             documents=data['documents'] 
+             
+             for j in documents:
+                passages= j['passages'] 
+                for m in passages:
+                   m['annotations']=[]
+                   found_microbiome=[]
+                   found_offset=[]
+                
+                   text1=m['text']+' end '
+                   text=re.split(r'(\W+)', text1)
+                   
+                   for k in text:
+                      
+                      if k in found_microbiome:
+                      
+                        my_list=list_duplicates_of(text, k)
+                      
+                        count = Counter(found_microbiome)
+                      
+                        index=my_list[count[k]]
+                      
+                      else:    
+                        index=text.index(k)
+                    
+                      try:
+                       
+                       
+                        if  text[index+4] =='sp' and text[index+6] =='nov' :
+                           
+                           number=0
+                           
+                           searchAndAnnotate(k,text[index]+text[index+1]+text[index+2]+text[index+3]+text[index+4]+text[index+5]+text[index+6]+'.','NA','Species',found_microbiome,m['text'],m['annotations'],m['offset'],b,found_offset,text[index+2],number,my_list) 
+                        elif  text[index+4] =='strain' and text[index+6] =='sp':
+                           
+                           number=0
+                           searchAndAnnotate(k,text[index]+text[index+1]+text[index+2]+text[index+3]+text[index+4]+text[index+5]+text[index+6]+'.','NA','Species',found_microbiome,m['text'],m['annotations'],m['offset'],b,found_offset,text[index+2],number,my_list) 
+                        elif  text[index+4] =='gen' and text[index+6] =='nov':
+                           
+                           number=0
+                           searchAndAnnotate(k,text[index]+text[index+1]+text[index+2]+text[index+3]+text[index+4]+text[index+5]+text[index+6]+'.','NA','Species',found_microbiome,m['text'],m['annotations'],m['offset'],b,found_offset,text[index+2],number,my_list) 
+                        elif len(text[index-2])==1  and text[index-2].isupper() and text[index-1]=='. ' and len(text[index])>3 and text[index].islower():
+                           
+                           id+=1
+                          
+                           b=1
+                           
+                           number=3
+                           searchAndAnnotate(k,text[index-2] + '.'+' ' + k ,'NA','Species',found_microbiome,m['text'],m['annotations'],m['offset'],b,found_offset,text[index+2],number,my_list) 
+                       #finding species with sp,...
+                        elif text[index+2] in species_list :
+                           id+=1
+                           b=1
+                           
+                           
+                           if text[index] + text[index+1]  + text[index+2] + '.' in dict_data :
+                               number=0
+                               searchAndAnnotate(k,text[index] + text[index+1]  + text[index+2] + text[index+3],dict_data[text[index]]['Kingdom'],'Species',found_microbiome,m['text'],m['annotations'],m['offset'],b,found_offset,text[index+2],number,my_list) 
+                               
+                           elif text[index] in dict_data :
+                             
+                             number=0
+                             searchAndAnnotate(k,text[index] + text[index+1]  + text[index+2] + text[index+3],dict_data[text[index]]['Kingdom'],'Species',found_microbiome,m['text'],m['annotations'],m['offset'],b,found_offset,text[index+2],number,my_list) 
+                           elif text[index+4]!='nov' and text[index+4]!='strain':
+                             
+                             number=0
+                             searchAndAnnotate(k,text[index] + text[index+1]  + text[index+2] + text[index+3],'NA','Species',found_microbiome,m['text'],m['annotations'],m['offset'],b,found_offset,text[index+2],number,my_list)
+
+                       #finding genus with gen,...
+                        elif text[index+2] in genus_list and len(text[index])>3:
+                           id+=1
+                           b=1
+                           number=0
+                           
+                           if text[index] + text[index+1]  + text[index+2] + '.' in dict_data :
+                               
+                               searchAndAnnotate(k,text[index] + text[index+1]  + text[index+2] + '.',dict_data[text[index]]['Kingdom'],'Genus',found_microbiome,m['text'],m['annotations'],m['offset'],b,found_offset,text[index+2],number,my_list) 
+                               
+                           elif text[index] in dict_data :
+                             found_microbiome.append(k)
+                             searchAndAnnotate(k,text[index] + text[index+1]  + text[index+2] + '.',dict_data[text[index]]['Kingdom'],'Genus',found_microbiome,m['text'],m['annotations'],m['offset'],b,found_offset,text[index+2],number,my_list) 
+                           else:
+                             
+                             searchAndAnnotate(k,text[index] + text[index+1]  + text[index+2] + '.','NA','Genus',found_microbiome,m['text'],m['annotations'],m['offset'],b,found_offset,text[index+2],number,my_list)
+                        #finding microbiome containing 2 words
+                        elif index+2<len(text) and text[index] + text[index+1]  + text[index+2] in dict_data  or index+2<len(text) and text[index] + text[index+1]  + text[index+2] in dict_data1: 
+                           
+                            id+=1
+                            b=0
+                            number=0
+                            
+                            searchAndAnnotate(k,text[index] + text[index+1]  + text[index+2],dict_data[k]['Kingdom'],'species',found_microbiome,m['text'],m['annotations'],m['offset'],b,found_offset,text[index+2],number,my_list)   
+                            
+                       #finding microbiome with one word
+                        elif text[index] in dict_data1 and len(k)>3 : 
+                          
+                             id+=1
+                             b=0
+                             number=0
+                             
+                             searchAndAnnotate(k,text[index],dict_data1[k]['Kingdom'],dict_data1[k]['Tax_Rank'],found_microbiome,m['text'],m['annotations'],m['offset'],b,found_offset,text[index+2],number,my_list) 
+                        elif text[index] in dict_data and len(k)>3 : 
+                            id+=1
+                            b=0
+                            number=0
+                            
+                            searchAndAnnotate(k,text[index],dict_data[k]['Kingdom'],dict_data[k]['Tax_Rank'],found_microbiome,m['text'],m['annotations'],m['offset'],b,found_offset,text[index+2],number,my_list) 
+                       
+                      except:
+                        pass       
+             
+                            
+                           
+#saving it as a json file 
+                   list1.append(my_list)
+                   for i in data: 
+                    a_file = open("/Users/nazanin/Downloads/new-json/output_vaginal/Division_vaginal/training/"+str(in_file), "w")
+                    json.dump(data, a_file, indent = 4)
+                    a_file.close()
+        
+    except:
+                 pass 
+stop_time = datetime.datetime.now() #stop time
+print(id)
+message = 'Start time is ' + str(start_time) + '\n' + 'Stop time is ' + str(stop_time)  
+
+with open('/Users/nazanin/Downloads/new-json/output_vaginal/Division_vaginal/training/test_training_runtime11.log', 'a') as time_file:   #start and stop time are written into a runtime.log file
+    
+   
+    time_file.write(message)
+
+with open('/Users/nazanin/Downloads/new-json/output_respiratory/bioc/training/test_training_runtime12new.log', 'a') as time_file:   #start and stop time are written into a runtime.log file
+    
+   
+    time_file.write(str(list1))
+
