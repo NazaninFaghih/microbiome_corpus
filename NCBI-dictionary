@@ -1,0 +1,84 @@
+import numpy as np
+import pandas as pd
+import scipy.stats
+#import seaborn as sns
+#import matplotlib as mpl
+#import matplotlib.pyplot as plt
+#import statsmodels.graphics.gofplots
+#from statsmodels.stats.multitest import multipletests
+import scipy.cluster.hierarchy as sch
+from scipy.stats import ttest_rel, ttest_1samp, shapiro, chi2_contingency, linregress
+#from statsmodels.api import OLS
+import warnings
+warnings.filterwarnings('ignore')
+import json
+import re
+import time
+from collections import Counter
+
+ncbi_data_bacteria = pd.read_csv('NCBI_Bacteria_id.csv') 
+ncbi_data_archea = pd.read_csv('NCBI_archea_id.csv') 
+ncbi_data_fungi = pd.read_csv('NCBI_fungi_id.csv') 
+
+names = pd.read_csv('names.csv') 
+nodes = pd.read_csv('nodes.csv') 
+ncbi_data_fungi['Kingdom']='fungi'
+ncbi_data_archea['Kingdom']='archea'
+ncbi_data_bacteria['Kingdom']='bacteria'
+
+ncbi_data_fungi = ncbi_data_fungi.rename(columns={'4751': 'ID'})
+ncbi_data_archea = ncbi_data_archea.rename(columns={'2157': 'ID'})
+ncbi_data_bacteria = ncbi_data_bacteria.rename(columns={'2': 'ID'})
+all = pd.concat([ncbi_data_fungi, ncbi_data_archea], axis = 0)
+all = pd.concat([all, ncbi_data_bacteria], axis = 0)
+names=names.rename(columns={'1': 'ID','all': 'name'})
+names = names.drop('Unnamed: 2', axis=1)
+names = names.drop('synonym', axis=1)
+nodes=nodes.rename(columns={'1': 'ID','1.1': 'IDi','no rank':'Tax_Rank'})
+
+nodes = nodes.drop('Unnamed: 3', axis=1)
+nodes = nodes.drop('8', axis=1)
+nodes = nodes.drop('0', axis=1)
+nodes = nodes.drop('1.2', axis=1)
+nodes = nodes.drop('0.2', axis=1)
+nodes = nodes.drop('0.3', axis=1)
+nodes = nodes.drop('0.4', axis=1)
+nodes = nodes.drop('0.5', axis=1)
+nodes = nodes.drop('Unnamed: 12', axis=1)
+nodes = nodes.drop('0.1', axis=1)
+
+dic_ncbi=pd.merge(all_names, nodes, on='ID')
+dic_ncbi = dic_ncbi.drop('IDi', axis=1)
+
+dic_ncbi=dic_ncbi.drop_duplicates()
+
+dic_ncbi.Tax_Rank.replace(['species'], ['Species'], inplace=True)
+dic_ncbi = dic_ncbi[dic_ncbi.Tax_Rank != 'strain']
+
+dic_ncbi = dic_ncbi[dic_ncbi.Tax_Rank != 'subspecies']
+dic_ncbi = dic_ncbi[dic_ncbi.Tax_Rank != 'forma specialis']
+dic_ncbi = dic_ncbi[dic_ncbi.Tax_Rank != 'isolate']
+dic_ncbi = dic_ncbi[dic_ncbi.Tax_Rank != 'varietas']
+dic_ncbi = dic_ncbi[dic_ncbi.Tax_Rank != 'forma']
+
+dic_ncbi = dic_ncbi.loc[(dic_ncbi['Tax_Rank'] =='no rank') | ~dic_ncbi['name'].duplicated()]
+def replace_last(source_string, replace_what, replace_with):
+    head, _sep, tail = source_string.rpartition(replace_what)
+    return head + replace_with + tail
+for k in range(0,len(dic_ncbi['name'])):
+   try:
+     if dic_ncbi['name'][k].endswith('us'):
+       l=replace_last(dic_ncbi['name'][k], 'us', 'i')
+       dic_ncbi = dic_ncbi.append({'ID': 1, 'Kingdom': dic_ncbi['Kingdom'][k],'name':l,'Tax_Rank': dic_ncbi['Tax_Rank'][k]}, ignore_index=True)
+     elif dic_ncbi['name'][k].endswith('ium'):
+        l=replace_last(dic_ncbi['name'][k], 'ium', 'ia')
+        l1=replace_last(dic_ncbi['name'][k], 'ium', 'ial')
+        dic_ncbi = dic_ncbi.append({'ID': 1, 'Kingdom': dic_ncbi['Kingdom'][k],'name':l,'Tax_Rank': dic_ncbi['Tax_Rank'][k]}, ignore_index=True)
+        dic_ncbi = dic_ncbi.append({'ID': 1, 'Kingdom': dic_ncbi['Kingdom'][k],'name':l1,'Tax_Rank': dic_ncbi['Tax_Rank'][k]}, ignore_index=True)
+     elif dic_ncbi['name'][k].endswith('ia'):
+        l=replace_last(dic_ncbi['name'][k], 'ia', 'ial')
+        dic_ncbi = dic_ncbi.append({'ID': 1, 'Kingdom': dic_ncbi['Kingdom'][k],'name':l,'Tax_Rank': dic_ncbi['Tax_Rank'][k]}, ignore_index=True)
+   except:
+     pass
+     
+ dic_ncbi.to_csv(r'dictionary.csv', index = False)
