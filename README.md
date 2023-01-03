@@ -3,7 +3,7 @@ A Natural language processing project done as part of my MRes degree which invol
 
 - NCBI-dictionary : Includes the code to clean and process the NCBI data into one dataset as a dictionary which will include each microbiome, their kingdom and their taxonomic rank. 
 - Annotation_pipeline : Includes the pipeline which will use string matching with the dictionary data and some rule-based methods to annotate all the microbiome in a publication. 
-- BioBert_input : Converts the annotated publication into the format needed by the biobert. 
+- BioBert_input : Converts the annotated publication into the format needed by biobert. 
 
 # Methods: 
 The study introduces a newly developed pipeline to automatically annotate microbial entities (bacteria, archaea, fungi) in biomedical publications. This pipeline has been developed through string matching and rule-based annotation. A taxonomic rank dictionary has also been created to aid the string matching and detect each entity`s taxonomic rank and kingdom. Furthermore, a BioBERT-BiLSTM deep learning model was trained to detect all microbiome entities. This model was tested on a manually annotated test set.
